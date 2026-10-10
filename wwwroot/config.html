@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konfigurasi Sistem & Pusher - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex flex-col font-sans antialiased">
+
+  <div id="sharedHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col min-h-0 space-y-3">
+    
+    <div class="bg-white p-4 rounded-lg border border-slate-200">
+      <h2 class="text-sm font-bold text-slate-900">Pengaturan Toko, API, & Notifikasi Real-time</h2>
+      <p class="text-xs text-slate-500">Kelola identitas operasional dan kredensial integrasi notifikasi Pusher Channels</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+      
+      <!-- Identitas Toko & Struk -->
+      <div class="bg-white p-4 rounded-lg border border-slate-200 space-y-3 text-xs">
+        <h3 class="font-bold text-slate-800 border-b pb-2">Identitas Toko & Printer Struk</h3>
+        
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nama Toko / Usaha</label>
+          <input type="text" id="cfgStoreName" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Alamat Operasional</label>
+          <input type="text" id="cfgStoreAddress" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nomor Telepon / Kontak</label>
+          <input type="text" id="cfgStorePhone" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Notifikasi Pusher Channels -->
+      <div class="bg-white p-4 rounded-lg border border-slate-200 space-y-3 text-xs">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="font-bold text-slate-800">Integrasi Notifikasi Pusher</h3>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" id="cfgPusherEnabled" class="rounded text-emerald-600 focus:ring-emerald-500">
+            <span class="font-bold text-slate-700">Aktifkan Pusher</span>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">App ID</label>
+            <input type="text" id="cfgPusherAppId" placeholder="misal: 1234567" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">App Cluster</label>
+            <input type="text" id="cfgPusherCluster" placeholder="misal: ap1" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">App Key</label>
+          <input type="text" id="cfgPusherKey" placeholder="Pusher App Key" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">App Secret</label>
+          <input type="password" id="cfgPusherSecret" placeholder="Pusher App Secret" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono">
+        </div>
+
+        <div class="pt-2 flex justify-between items-center border-t">
+          <button onclick="testPusherNotification()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold transition">Uji Notifikasi Pusher</button>
+          <span class="text-[11px] text-slate-400">Trigger test REST endpoint</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-end">
+      <button onclick="saveAllConfigs()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow-sm">Simpan Semua Pengaturan</button>
+    </div>
+
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script>
+    if (checkAuthGuard('config')) {
+      renderSharedHeader('config');
+    }
+
+    async function loadConfigs() {
+      try {
+        const res = await fetch(`${API_BASE}/config`, { headers: getHeaders() });
+        const cfg = await res.json();
+        document.getElementById('cfgStoreName').value = cfg.store_name || '';
+        document.getElementById('cfgStoreAddress').value = cfg.store_address || '';
+        document.getElementById('cfgStorePhone').value = cfg.store_phone || '';
+        document.getElementById('cfgPusherEnabled').checked = cfg.pusher_enabled === 'true';
+        document.getElementById('cfgPusherAppId').value = cfg.pusher_app_id || '';
+        document.getElementById('cfgPusherKey').value = cfg.pusher_key || '';
+        document.getElementById('cfgPusherSecret').value = cfg.pusher_secret || '';
+        document.getElementById('cfgPusherCluster').value = cfg.pusher_cluster || 'ap1';
+      } catch (e) { showToast('Gagal memuat konfigurasi', 'error'); }
+    }
+
+    async function saveAllConfigs() {
+      const payload = {
+        store_name: document.getElementById('cfgStoreName').value.trim(),
+        store_address: document.getElementById('cfgStoreAddress').value.trim(),
+        store_phone: document.getElementById('cfgStorePhone').value.trim(),
+        pusher_enabled: document.getElementById('cfgPusherEnabled').checked ? 'true' : 'false',
+        pusher_app_id: document.getElementById('cfgPusherAppId').value.trim(),
+        pusher_key: document.getElementById('cfgPusherKey').value.trim(),
+        pusher_secret: document.getElementById('cfgPusherSecret').value.trim(),
+        pusher_cluster: document.getElementById('cfgPusherCluster').value.trim()
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/config`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast('Semua pengaturan berhasil disimpan', 'success');
+          loadConfigs();
+        } else showToast('Gagal menyimpan konfigurasi', 'error');
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function testPusherNotification() {
+      showToast('Mengirim notifikasi uji coba ke Pusher...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/config/test-pusher`, {
+          method: 'POST',
+          headers: getHeaders()
+        });
+        const result = await res.json();
+        showToast(result.message, result.success ? 'success' : 'error');
+      } catch (e) { showToast('Gagal: ' + e.message, 'error'); }
+    }
+
+    loadConfigs();
+  </script>
+</body>
+</html>

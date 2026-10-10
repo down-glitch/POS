@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manajemen Gudang - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex flex-col font-sans antialiased">
+
+  <div id="sharedHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col min-h-0 space-y-3">
+    
+    <!-- Sub-Navigation Gudang -->
+    <div class="bg-white p-2 rounded-lg border border-slate-200 flex items-center space-x-1 overflow-x-auto scrollbar-none text-xs">
+      <button onclick="switchWarehouseSubTab('po')" id="wSubBtn-po" class="px-3 py-1.5 rounded-md font-bold bg-slate-900 text-white shrink-0">1. Pemesanan (PO)</button>
+      <button onclick="switchWarehouseSubTab('receipts')" id="wSubBtn-receipts" class="px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0">2. Penerimaan Barang</button>
+      <button onclick="switchWarehouseSubTab('revisions')" id="wSubBtn-revisions" class="px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0">3. Revisi Penerimaan</button>
+      <button onclick="switchWarehouseSubTab('stock')" id="wSubBtn-stock" class="px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0">4. Data Stok & Nilai</button>
+      <button onclick="switchWarehouseSubTab('opname')" id="wSubBtn-opname" class="px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0">5. Stok Opname</button>
+      <button onclick="switchWarehouseSubTab('stockcard')" id="wSubBtn-stockcard" class="px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0">6. Kartu Stok</button>
+    </div>
+
+    <!-- Sub-Tab 1: Pemesanan (PO) -->
+    <div id="wSub-po" class="flex-1 flex flex-col space-y-3">
+      <div class="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Pemesanan Barang ke Supplier (Purchase Order)</h3>
+          <p class="text-xs text-slate-500">Kelola pemesanan barang masuk sebelum dilakukan penerimaan fisik</p>
+        </div>
+        <button onclick="openPoModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md">+ Buat PO Baru</button>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-3 pl-4">No. PO</th>
+                <th class="p-3">Supplier</th>
+                <th class="p-3">Tanggal</th>
+                <th class="p-3">Rincian Item</th>
+                <th class="p-3 text-right">Total Nilai</th>
+                <th class="p-3 text-center">Status</th>
+                <th class="p-3 pr-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="poTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Tab 2: Penerimaan Barang -->
+    <div id="wSub-receipts" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Penerimaan Barang Fisik (Goods Receipt)</h3>
+          <p class="text-xs text-slate-500">Menerima barang dari PO. Stok produk otomatis bertambah dan tercatat di kartu stok</p>
+        </div>
+        <button onclick="openReceiptModalFromPo()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md">+ Terima Barang dari PO</button>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-3 pl-4">No. Bukti Terima</th>
+                <th class="p-3">Waktu Terima</th>
+                <th class="p-3">Penerima</th>
+                <th class="p-3">Item Diterima</th>
+                <th class="p-3">Catatan</th>
+                <th class="p-3 pr-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="receiptsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Tab 3: Revisi Penerimaan -->
+    <div id="wSub-revisions" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="bg-white p-3 rounded-lg border border-slate-200">
+        <h3 class="text-sm font-bold text-slate-900">Riwayat Revisi Penerimaan & Penyesuaian Retur</h3>
+        <p class="text-xs text-slate-500">Mencatat koreksi kuantitas barang yang salah terima atau retur cacat</p>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-3 pl-4">Waktu Revisi</th>
+                <th class="p-3">Petugas</th>
+                <th class="p-3">Produk</th>
+                <th class="p-3 text-center">Selisih Penyesuaian</th>
+                <th class="p-3 pr-4">Alasan & Catatan</th>
+              </tr>
+            </thead>
+            <tbody id="revisionsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Tab 4: Data Stok & Nilai Persediaan -->
+    <div id="wSub-stock" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="text-slate-500 font-medium">Total Nilai Aset Stok</div>
+          <div id="stockValuationText" class="text-base font-black text-slate-900 mt-1">Rp 0</div>
+        </div>
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="text-slate-500 font-medium">Total Unit Fisik</div>
+          <div id="stockTotalUnitsText" class="text-base font-black text-slate-900 mt-1">0 unit</div>
+        </div>
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="text-amber-600 font-medium">Stok Kritis (&le; 5)</div>
+          <div id="stockLowCountText" class="text-base font-black text-amber-700 mt-1">0 produk</div>
+        </div>
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="text-rose-600 font-medium">Stok Habis (0)</div>
+          <div id="stockOutCountText" class="text-base font-black text-rose-700 mt-1">0 produk</div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-3 pl-4">Barcode</th>
+                <th class="p-3">Nama Produk</th>
+                <th class="p-3 text-right">Harga Jual</th>
+                <th class="p-3 text-center">Stok Gudang</th>
+                <th class="p-3 text-right">Nilai Persediaan</th>
+                <th class="p-3 pr-4 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="stockOverviewTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Tab 5: Stok Opname -->
+    <div id="wSub-opname" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Rekonsiliasi Stok Fisik (Stok Opname)</h3>
+          <p class="text-xs text-slate-500">Pemeriksaan fisik gudang berkala dan penyesuaian otomatis saldo kartu stok</p>
+        </div>
+        <button onclick="openOpnameModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-md">+ Buat Stok Opname Baru</button>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <th class="p-3 pl-4">No. Opname</th>
+                <th class="p-3">Waktu</th>
+                <th class="p-3">Petugas</th>
+                <th class="p-3">Catatan</th>
+                <th class="p-3 text-center">Jumlah Item Diperiksa</th>
+                <th class="p-3 text-center">Selisih Fisik vs Sistem</th>
+                <th class="p-3 pr-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="opnameTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Tab 6: Kartu Stok (Ledger Mutasi) -->
+    <div id="wSub-stockcard" class="hidden flex-1 flex flex-col space-y-3">
+      <div class="bg-white p-3 rounded-lg border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Buku Pembantu Kartu Stok (Audit Mutasi Barang)</h3>
+          <p class="text-xs text-slate-500">Mencatat setiap pergerakan masuk, keluar, dan penyesuaian stok per item</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <label class="text-xs font-medium text-slate-600">Filter Produk:</label>
+          <select id="stockCardProductFilter" onchange="loadStockCard()" class="px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-slate-50 focus:outline-none">
+            <option value="0">Semua Produk</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs font-mono">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-sans font-bold">
+                <th class="p-3 pl-4">Tanggal & Waktu</th>
+                <th class="p-3">Nama Produk</th>
+                <th class="p-3">Tipe Mutasi</th>
+                <th class="p-3">No. Referensi</th>
+                <th class="p-3 text-center">Perubahan Qty</th>
+                <th class="p-3 text-center">Saldo Akhir</th>
+                <th class="p-3">Operator</th>
+                <th class="p-3 pr-4">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="stockCardTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modals Gudang -->
+  <!-- Modal Buat PO -->
+  <div id="poModal" class="fixed inset-0 bg-slate-950/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-lg w-full p-5 shadow-lg border border-slate-200 space-y-3.5 text-xs">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Buat Purchase Order (PO) Baru</h3>
+        <button onclick="closePoModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Nama Supplier / Pemasok *</label>
+        <input type="text" id="poFormSupplier" placeholder="misal: PT Distribusi Pangan Jaya" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none">
+      </div>
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="font-semibold text-slate-700">Daftar Barang yang Dipesan *</label>
+          <button type="button" onclick="addPoItemRow()" class="text-emerald-700 font-bold hover:underline">+ Tambah Baris</button>
+        </div>
+        <div id="poItemsContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
+        <button onclick="closePoModal()" class="px-3 py-1.5 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+        <button onclick="savePo()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Terbitkan PO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Penerimaan Barang (GR) -->
+  <div id="receiptModalGr" class="fixed inset-0 bg-slate-950/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-md w-full p-5 shadow-lg border border-slate-200 space-y-3 text-xs">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Catat Penerimaan Barang Masuk</h3>
+        <button onclick="closeReceiptGrModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Pilih PO yang Diterima *</label>
+        <select id="grFormPoSelect" onchange="loadPoItemsToReceipt(this.value)" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none bg-white">
+          <option value="">-- Pilih Nomor PO --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Catatan Penerima</label>
+        <input type="text" id="grFormNotes" placeholder="Kondisi barang baik / keterangan ekspedisi" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none">
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Kuantitas Diterima:</label>
+        <div id="grItemsContainer" class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+          <p class="text-slate-400 text-center py-4">Pilih PO terlebih dahulu</p>
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
+        <button onclick="closeReceiptGrModal()" class="px-3 py-1.5 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+        <button onclick="saveGoodsReceipt()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Simpan Penerimaan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Revisi Penerimaan -->
+  <div id="revisionModal" class="fixed inset-0 bg-slate-950/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-sm w-full p-5 shadow-lg border border-slate-200 space-y-3 text-xs">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Revisi Penerimaan Barang</h3>
+        <button onclick="closeRevisionModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
+      </div>
+      <input type="hidden" id="revFormGrId">
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Produk yang Dikoreksi</label>
+        <select id="revFormProductSelect" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none bg-white"></select>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Penyesuaian Kuantitas (Delta)</label>
+        <input type="number" id="revFormDelta" placeholder="-2 (jika retur) atau +1 (jika kurang)" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none font-bold">
+        <span class="text-[10px] text-slate-400">Gunakan angka negatif untuk mengurangi stok (retur/rusak).</span>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Alasan Revisi *</label>
+        <input type="text" id="revFormReason" placeholder="Barang kemasan bocor dikembalikan ke supplier" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none">
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
+        <button onclick="closeRevisionModal()" class="px-3 py-1.5 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+        <button onclick="saveRevision()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Simpan Koreksi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Stok Opname Baru -->
+  <div id="opnameModal" class="fixed inset-0 bg-slate-950/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-xl w-full p-5 shadow-lg border border-slate-200 space-y-3 text-xs">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Input Hasil Pemeriksaan Fisik (Stok Opname)</h3>
+        <button onclick="closeOpnameModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Catatan Opname</label>
+        <input type="text" id="opnameFormNotes" placeholder="Pemeriksaan stok mingguan rak A-C" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none">
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Hitung Fisik Produk:</label>
+        <div class="border rounded max-h-56 overflow-y-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 sticky top-0 border-b">
+              <tr class="text-slate-600 font-bold">
+                <th class="p-2 pl-3">Produk</th>
+                <th class="p-2 text-center">Stok Sistem</th>
+                <th class="p-2 text-center w-28">Stok Fisik</th>
+                <th class="p-2 text-center pr-3">Selisih</th>
+              </tr>
+            </thead>
+            <tbody id="opnameItemsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
+        <button onclick="closeOpnameModal()" class="px-3 py-1.5 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+        <button onclick="saveOpname()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Simpan & Rekonsiliasi Stok</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/nav.js"></script>
+  <script>
+    if (checkAuthGuard('warehouse')) {
+      renderSharedHeader('warehouse');
+    }
+
+    const WAREHOUSE_SUB_TABS = ['po', 'receipts', 'revisions', 'stock', 'opname', 'stockcard'];
+    let activeWarehouseSubTab = 'po';
+    let products = [];
+    let cachedPoList = [];
+    let cachedReceiptsList = [];
+
+    async function initWarehouse() {
+      try {
+        const res = await fetch(`${API_BASE}/products`, { headers: getHeaders() });
+        products = await res.json();
+      } catch (e) {}
+      switchWarehouseSubTab('po');
+    }
+
+    function switchWarehouseSubTab(sub) {
+      activeWarehouseSubTab = sub;
+      WAREHOUSE_SUB_TABS.forEach(s => {
+        const isCurrent = s === sub;
+        const section = document.getElementById(`wSub-${s}`);
+        const btn = document.getElementById(`wSubBtn-${s}`);
+        if (section) section.classList.toggle('hidden', !isCurrent);
+        if (btn) btn.className = isCurrent 
+          ? 'px-3 py-1.5 rounded-md font-bold bg-slate-900 text-white shrink-0'
+          : 'px-3 py-1.5 rounded-md font-semibold text-slate-600 hover:bg-slate-100 shrink-0';
+      });
+
+      if (sub === 'po') loadPoList();
+      else if (sub === 'receipts') loadReceiptsList();
+      else if (sub === 'revisions') loadReceiptRevisionsList();
+      else if (sub === 'stock') loadStockOverview();
+      else if (sub === 'opname') loadOpnameList();
+      else if (sub === 'stockcard') loadStockCard();
+    }
+
+    // 1. PO
+    async function loadPoList() {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/po`, { headers: getHeaders() });
+        cachedPoList = await res.json();
+        const tbody = document.getElementById('poTableBody');
+        if (!cachedPoList.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada dokumen PO</td></tr>';
+          return;
+        }
+        tbody.innerHTML = cachedPoList.map(po => {
+          const itemsSummary = po.items?.map(i => `${i.productName} (${i.quantityReceived}/${i.quantityOrdered} pcs)`).join(', ') || '-';
+          const statusBadge = po.status === 'Selesai' ? 'bg-emerald-100 text-emerald-800' :
+                              po.status === 'Dibatalkan' ? 'bg-rose-100 text-rose-800' :
+                              po.status === 'Sebagian' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800';
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 pl-4 font-mono font-bold text-slate-900">${po.poNumber}</td>
+              <td class="p-3 font-semibold text-slate-800">${escapeHtml(po.supplierName)}</td>
+              <td class="p-3 text-slate-600">${new Date(po.createdAt).toLocaleDateString('id-ID')}</td>
+              <td class="p-3 text-slate-600 max-w-xs truncate" title="${escapeHtml(itemsSummary)}">${escapeHtml(itemsSummary)}</td>
+              <td class="p-3 text-right font-black text-slate-900">${formatRp(po.totalAmount)}</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${statusBadge}">${po.status}</span></td>
+              <td class="p-3 pr-4 text-center space-x-1">
+                ${po.status !== 'Selesai' && po.status !== 'Dibatalkan' ? `
+                  <button onclick="openReceiptModalForSpecificPo(${po.id})" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold text-[11px]">Terima Barang</button>
+                  <button onclick="cancelPo(${po.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded font-semibold text-[11px]">Batal</button>
+                ` : `<span class="text-slate-400 text-[11px]">-</span>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) { showToast('Gagal memuat PO', 'error'); }
+    }
+
+    function openPoModal() {
+      document.getElementById('poFormSupplier').value = '';
+      document.getElementById('poItemsContainer').innerHTML = '';
+      addPoItemRow();
+      document.getElementById('poModal').classList.remove('hidden');
+      document.getElementById('poModal').classList.add('flex');
+    }
+    function closePoModal() {
+      document.getElementById('poModal').classList.add('hidden');
+      document.getElementById('poModal').classList.remove('flex');
+    }
+
+    function addPoItemRow() {
+      const container = document.getElementById('poItemsContainer');
+      const rowId = 'poRow-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+      const div = document.createElement('div');
+      div.id = rowId;
+      div.className = 'flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-200';
+      div.innerHTML = `
+        <select class="po-prod-select flex-1 px-2 py-1 border border-slate-300 rounded bg-white text-xs">
+          ${products.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}
+        </select>
+        <input type="number" placeholder="Qty" min="1" value="10" class="po-prod-qty w-16 px-2 py-1 border border-slate-300 rounded text-center text-xs font-bold">
+        <input type="number" placeholder="Harga Beli" min="0" value="0" class="po-prod-price w-24 px-2 py-1 border border-slate-300 rounded text-right text-xs">
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-rose-600 font-bold px-1 text-sm">&times;</button>
+      `;
+      container.appendChild(div);
+    }
+
+    async function savePo() {
+      const supplier = document.getElementById('poFormSupplier').value.trim();
+      if (!supplier) { showToast('Nama supplier wajib diisi', 'error'); return; }
+
+      const rows = document.querySelectorAll('#poItemsContainer > div');
+      const items = [];
+      rows.forEach(r => {
+        const prodId = parseInt(r.querySelector('.po-prod-select').value);
+        const qty = parseInt(r.querySelector('.po-prod-qty').value) || 0;
+        const price = parseFloat(r.querySelector('.po-prod-price').value) || 0;
+        const prod = products.find(p => p.id === prodId);
+        if (prodId && qty > 0) items.push({ productId: prodId, productName: prod ? prod.name : '', quantityOrdered: qty, unitPrice: price });
+      });
+
+      if (!items.length) { showToast('Tambahkan minimal 1 item', 'error'); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/po`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ supplierName: supplier, items })
+        });
+        if (res.ok) {
+          showToast('PO berhasil dibuat', 'success');
+          closePoModal();
+          loadPoList();
+        } else {
+          const err = await res.json();
+          showToast(err.message || 'Gagal membuat PO', 'error');
+        }
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function cancelPo(id) {
+      if (!confirm('Batalkan pemesanan PO ini?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/po/${id}/cancel`, { method: 'PUT', headers: getHeaders() });
+        if (res.ok) { showToast('PO dibatalkan', 'info'); loadPoList(); }
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // 2. Goods Receipt
+    async function loadReceiptsList() {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/receipts`, { headers: getHeaders() });
+        cachedReceiptsList = await res.json();
+        const tbody = document.getElementById('receiptsTableBody');
+        if (!cachedReceiptsList.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Belum ada data penerimaan barang</td></tr>';
+          return;
+        }
+        tbody.innerHTML = cachedReceiptsList.map(gr => {
+          const itemsSummary = gr.items?.map(i => `${i.productName} (${i.quantityReceived} pcs)`).join(', ') || '-';
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 pl-4 font-mono font-bold text-slate-900">${gr.receiptNumber}</td>
+              <td class="p-3 text-slate-600">${new Date(gr.receivedAt).toLocaleString('id-ID')}</td>
+              <td class="p-3 font-semibold text-slate-800">${escapeHtml(gr.receivedBy)}</td>
+              <td class="p-3 text-slate-600 max-w-xs truncate" title="${escapeHtml(itemsSummary)}">${escapeHtml(itemsSummary)}</td>
+              <td class="p-3 text-slate-500">${escapeHtml(gr.notes || '-')}</td>
+              <td class="p-3 pr-4 text-center">
+                <button onclick="openRevisionModal(${gr.id})" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded font-semibold text-[11px]">Revisi Qty / Retur</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) { showToast('Gagal memuat penerimaan barang', 'error'); }
+    }
+
+    async function openReceiptModalFromPo() {
+      await loadPoList();
+      const select = document.getElementById('grFormPoSelect');
+      const activePos = cachedPoList.filter(p => p.status === 'Diproses' || p.status === 'Sebagian');
+      select.innerHTML = '<option value="">-- Pilih Nomor PO --</option>' + activePos.map(p => `
+        <option value="${p.id}">${p.poNumber} - ${escapeHtml(p.supplierName)}</option>
+      `).join('');
+      document.getElementById('grFormNotes').value = '';
+      document.getElementById('grItemsContainer').innerHTML = '<p class="text-slate-400 text-center py-4">Pilih PO terlebih dahulu</p>';
+      document.getElementById('receiptModalGr').classList.remove('hidden');
+      document.getElementById('receiptModalGr').classList.add('flex');
+    }
+
+    function openReceiptModalForSpecificPo(poId) {
+      openReceiptModalFromPo().then(() => {
+        document.getElementById('grFormPoSelect').value = poId;
+        loadPoItemsToReceipt(poId);
+      });
+    }
+
+    function loadPoItemsToReceipt(poId) {
+      const container = document.getElementById('grItemsContainer');
+      const po = cachedPoList.find(p => p.id == poId);
+      if (!po || !po.items?.length) {
+        container.innerHTML = '<p class="text-slate-400 text-center py-4">Tidak ada data item</p>';
+        return;
+      }
+      container.innerHTML = po.items.map(i => {
+        const sisa = Math.max(0, i.quantityOrdered - i.quantityReceived);
+        return `
+          <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-200">
+            <div class="flex-1 min-w-0 pr-2">
+              <div class="font-bold text-slate-800 truncate">${escapeHtml(i.productName)}</div>
+              <div class="text-[10px] text-slate-500">Pesan: ${i.quantityOrdered} | Diterima: ${i.quantityReceived} | Sisa: ${sisa}</div>
+            </div>
+            <div class="flex items-center space-x-1 shrink-0">
+              <span class="text-xs text-slate-500">Terima:</span>
+              <input type="number" data-prod-id="${i.productId}" min="0" max="${sisa > 0 ? sisa : 9999}" value="${sisa}" class="gr-input-qty w-16 text-center py-1 border border-slate-300 rounded text-xs font-bold bg-white">
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function closeReceiptGrModal() {
+      document.getElementById('receiptModalGr').classList.add('hidden');
+      document.getElementById('receiptModalGr').classList.remove('flex');
+    }
+
+    async function saveGoodsReceipt() {
+      const poId = parseInt(document.getElementById('grFormPoSelect').value);
+      if (!poId) { showToast('Pilih PO terlebih dahulu', 'error'); return; }
+
+      const inputs = document.querySelectorAll('#grItemsContainer .gr-input-qty');
+      const items = [];
+      inputs.forEach(inp => {
+        const qty = parseInt(inp.value) || 0;
+        const prodId = parseInt(inp.getAttribute('data-prod-id'));
+        if (prodId && qty > 0) items.push({ productId: prodId, quantityReceived: qty });
+      });
+
+      if (!items.length) { showToast('Masukkan kuantitas barang yang diterima', 'error'); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/receipts`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            purchaseOrderId: poId,
+            notes: document.getElementById('grFormNotes').value.trim(),
+            items
+          })
+        });
+
+        if (res.ok) {
+          showToast('Penerimaan barang berhasil dicatat & stok bertambah', 'success');
+          closeReceiptGrModal();
+          loadReceiptsList();
+        } else {
+          const err = await res.json();
+          showToast(err.message || 'Gagal mencatat penerimaan', 'error');
+        }
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // 3. Revisi Penerimaan
+    function openRevisionModal(grId) {
+      const gr = cachedReceiptsList.find(g => g.id === grId);
+      if (!gr) return;
+      document.getElementById('revFormGrId').value = grId;
+      document.getElementById('revFormProductSelect').innerHTML = gr.items.map(i => `
+        <option value="${i.productId}">${escapeHtml(i.productName)} (Diterima: ${i.quantityReceived})</option>
+      `).join('');
+      document.getElementById('revFormDelta').value = '';
+      document.getElementById('revFormReason').value = '';
+
+      document.getElementById('revisionModal').classList.remove('hidden');
+      document.getElementById('revisionModal').classList.add('flex');
+    }
+    function closeRevisionModal() {
+      document.getElementById('revisionModal').classList.add('hidden');
+      document.getElementById('revisionModal').classList.remove('flex');
+    }
+
+    async function saveRevision() {
+      const grId = document.getElementById('revFormGrId').value;
+      const prodId = parseInt(document.getElementById('revFormProductSelect').value);
+      const delta = parseInt(document.getElementById('revFormDelta').value) || 0;
+      const reason = document.getElementById('revFormReason').value.trim();
+
+      if (delta === 0) { showToast('Nilai perubahan kuantitas tidak boleh 0', 'error'); return; }
+      if (!reason) { showToast('Alasan revisi wajib diisi', 'error'); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/receipts/${grId}/revise`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ productId: prodId, deltaQuantity: delta, reason })
+        });
+        if (res.ok) {
+          showToast('Revisi berhasil dicatat & stok disesuaikan', 'success');
+          closeRevisionModal();
+          loadReceiptsList();
+        } else {
+          const err = await res.json();
+          showToast(err.message || 'Gagal merevisi', 'error');
+        }
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    async function loadReceiptRevisionsList() {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/receipts`, { headers: getHeaders() });
+        const list = await res.json();
+        const allRevisions = list.flatMap(g => g.revisions || []);
+        const tbody = document.getElementById('revisionsTableBody');
+        if (!allRevisions.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">Belum ada riwayat revisi penerimaan</td></tr>';
+          return;
+        }
+        tbody.innerHTML = allRevisions.map(r => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 pl-4 font-mono text-slate-600">${new Date(r.revisedAt).toLocaleString('id-ID')}</td>
+            <td class="p-3 font-semibold text-slate-800">${escapeHtml(r.revisedBy)}</td>
+            <td class="p-3 font-bold text-slate-900">${escapeHtml(r.productName)}</td>
+            <td class="p-3 text-center font-bold ${r.deltaQuantity < 0 ? 'text-rose-600' : 'text-emerald-700'}">${r.deltaQuantity > 0 ? '+' : ''}${r.deltaQuantity} pcs</td>
+            <td class="p-3 pr-4 text-slate-600">${escapeHtml(r.reason)}</td>
+          </tr>
+        `).join('');
+      } catch (e) { showToast('Gagal memuat log revisi', 'error'); }
+    }
+
+    // 4. Data Stok
+    async function loadStockOverview() {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/stock`, { headers: getHeaders() });
+        const data = await res.json();
+        const s = data.summary;
+        document.getElementById('stockValuationText').innerText = formatRp(s.totalValuation);
+        document.getElementById('stockTotalUnitsText').innerText = `${s.totalStock} unit`;
+        document.getElementById('stockLowCountText').innerText = `${s.lowStockCount} produk`;
+        document.getElementById('stockOutCountText').innerText = `${s.outOfStockCount} produk`;
+
+        const tbody = document.getElementById('stockOverviewTableBody');
+        tbody.innerHTML = data.products.map(p => {
+          const val = p.price * p.stock;
+          const status = p.stock <= 0 ? '<span class="text-rose-600 font-bold">Habis</span>' :
+                         p.stock <= 5 ? '<span class="text-amber-700 font-bold">Kritis</span>' : '<span class="text-emerald-700 font-semibold">Tersedia</span>';
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 pl-4 font-mono text-slate-500">${p.barcode || '-'}</td>
+              <td class="p-3 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
+              <td class="p-3 text-right text-slate-700">${formatRp(p.price)}</td>
+              <td class="p-3 text-center font-black text-slate-900">${p.stock}</td>
+              <td class="p-3 text-right font-bold text-slate-900">${formatRp(val)}</td>
+              <td class="p-3 pr-4 text-center">${status}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) { showToast('Gagal memuat persediaan', 'error'); }
+    }
+
+    // 5. Stok Opname
+    async function loadOpnameList() {
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/opname`, { headers: getHeaders() });
+        const list = await res.json();
+        const tbody = document.getElementById('opnameTableBody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada dokumen stok opname</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(op => {
+          const diffItems = op.items?.filter(i => i.difference !== 0).length || 0;
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 pl-4 font-mono font-bold text-slate-900">${op.opnameNumber}</td>
+              <td class="p-3 text-slate-600">${new Date(op.createdAt).toLocaleString('id-ID')}</td>
+              <td class="p-3 font-semibold text-slate-800">${escapeHtml(op.performedBy)}</td>
+              <td class="p-3 text-slate-600">${escapeHtml(op.notes || '-')}</td>
+              <td class="p-3 text-center text-slate-800 font-bold">${op.items?.length || 0} produk</td>
+              <td class="p-3 text-center font-bold ${diffItems > 0 ? 'text-amber-700' : 'text-emerald-700'}">${diffItems} item berselisih</td>
+              <td class="p-3 pr-4 text-center">
+                <button onclick='alert("Rincian Opname: " + JSON.stringify(${JSON.stringify(op.items?.map(i => `${i.productName}: Sistem ${i.systemStock}, Fisik ${i.physicalStock} (${i.difference})`))}))' class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-semibold">Lihat Rincian</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) { showToast('Gagal memuat stok opname', 'error'); }
+    }
+
+    function openOpnameModal() {
+      document.getElementById('opnameFormNotes').value = '';
+      const tbody = document.getElementById('opnameItemsTableBody');
+      tbody.innerHTML = products.map(p => `
+        <tr class="hover:bg-slate-50 opname-row" data-prod-id="${p.id}" data-sys-stock="${p.stock}">
+          <td class="p-2 pl-3 font-semibold text-slate-800">${escapeHtml(p.name)}</td>
+          <td class="p-2 text-center text-slate-600">${p.stock}</td>
+          <td class="p-2 text-center">
+            <input type="number" min="0" value="${p.stock}" oninput="updateOpnameDiff(this)" class="opname-input-physical w-20 text-center py-1 border border-slate-300 rounded font-bold">
+          </td>
+          <td class="p-2 pr-3 text-center font-bold opname-diff text-slate-400">0</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('opnameModal').classList.remove('hidden');
+      document.getElementById('opnameModal').classList.add('flex');
+    }
+
+    function updateOpnameDiff(input) {
+      const row = input.closest('.opname-row');
+      const sys = parseInt(row.getAttribute('data-sys-stock')) || 0;
+      const phy = parseInt(input.value) || 0;
+      const diff = phy - sys;
+      const diffElem = row.querySelector('.opname-diff');
+      diffElem.innerText = diff > 0 ? `+${diff}` : `${diff}`;
+      diffElem.className = diff === 0 ? 'p-2 pr-3 text-center font-bold opname-diff text-slate-400' :
+                           diff > 0 ? 'p-2 pr-3 text-center font-bold opname-diff text-emerald-700' : 'p-2 pr-3 text-center font-bold opname-diff text-rose-600';
+    }
+
+    function closeOpnameModal() {
+      document.getElementById('opnameModal').classList.add('hidden');
+      document.getElementById('opnameModal').classList.remove('flex');
+    }
+
+    async function saveOpname() {
+      const rows = document.querySelectorAll('.opname-row');
+      const items = [];
+      rows.forEach(r => {
+        const prodId = parseInt(r.getAttribute('data-prod-id'));
+        const phy = parseInt(r.querySelector('.opname-input-physical').value) || 0;
+        if (prodId) items.push({ productId: prodId, physicalStock: phy });
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/warehouse/opname`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ notes: document.getElementById('opnameFormNotes').value.trim(), items })
+        });
+        if (res.ok) {
+          showToast('Stok Opname berhasil direkonsiliasi', 'success');
+          closeOpnameModal();
+          loadOpnameList();
+        } else {
+          const err = await res.json();
+          showToast(err.message || 'Gagal menyimpan opname', 'error');
+        }
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    }
+
+    // 6. Kartu Stok
+    async function loadStockCard() {
+      try {
+        const filterSelect = document.getElementById('stockCardProductFilter');
+        if (filterSelect.options.length <= 1) {
+          filterSelect.innerHTML = '<option value="0">Semua Produk</option>' + products.map(p => `
+            <option value="${p.id}">${escapeHtml(p.name)}</option>
+          `).join('');
+        }
+        const prodId = filterSelect.value || 0;
+        const url = prodId > 0 ? `${API_BASE}/warehouse/stock-card?productId=${prodId}` : `${API_BASE}/warehouse/stock-card`;
+        const res = await fetch(url, { headers: getHeaders() });
+        const list = await res.json();
+
+        const tbody = document.getElementById('stockCardTableBody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Belum ada mutasi kartu stok</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(s => {
+          const isPlus = s.quantityChange > 0;
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-2.5 pl-4 text-slate-600">${new Date(s.createdAt).toLocaleString('id-ID')}</td>
+              <td class="p-2.5 font-bold text-slate-900">${escapeHtml(s.productName)}</td>
+              <td class="p-2.5"><span class="px-1.5 py-0.5 rounded font-bold text-[10px] bg-slate-100 text-slate-700">${s.movementType}</span></td>
+              <td class="p-2.5 text-slate-500">${s.referenceNumber || '-'}</td>
+              <td class="p-2.5 text-center font-black ${isPlus ? 'text-emerald-700' : 'text-rose-600'}">${isPlus ? '+' : ''}${s.quantityChange}</td>
+              <td class="p-2.5 text-center font-black text-slate-900">${s.stockAfter}</td>
+              <td class="p-2.5 text-slate-700">${escapeHtml(s.performedBy)}</td>
+              <td class="p-2.5 pr-4 text-slate-500">${escapeHtml(s.notes || '-')}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) { showToast('Gagal memuat kartu stok', 'error'); }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closePoModal(); closeReceiptGrModal(); closeRevisionModal(); closeOpnameModal();
+      }
+    });
+
+    initWarehouse();
+  </script>
+</body>
+</html>

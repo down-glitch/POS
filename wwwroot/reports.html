@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Penjualan - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex flex-col font-sans antialiased">
+
+  <div id="sharedHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col min-h-0 space-y-3">
+    
+    <!-- Filter Date -->
+    <div class="bg-white p-3 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900">Laporan Analisis Penjualan Kasir</h2>
+        <p class="text-xs text-slate-500">Rekap omset, volume penjualan, dan produk terlaris</p>
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs">
+        <div class="flex items-center space-x-1">
+          <span class="text-slate-500">Dari:</span>
+          <input type="date" id="reportStartDate" class="px-2 py-1 border border-slate-300 rounded bg-slate-50">
+        </div>
+        <div class="flex items-center space-x-1">
+          <span class="text-slate-500">Sampai:</span>
+          <input type="date" id="reportEndDate" class="px-2 py-1 border border-slate-300 rounded bg-slate-50">
+        </div>
+        <button onclick="loadSalesReport()" class="px-3 py-1 bg-slate-900 text-white font-semibold rounded hover:bg-slate-800">Terapkan Filter</button>
+      </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+      <div class="bg-white p-3 rounded-lg border border-slate-200">
+        <div class="text-slate-500 font-medium">Total Pendapatan (Omset)</div>
+        <div id="repTotalRevenue" class="text-base font-black text-slate-900 mt-1">Rp 0</div>
+      </div>
+      <div class="bg-white p-3 rounded-lg border border-slate-200">
+        <div class="text-slate-500 font-medium">Jumlah Transaksi</div>
+        <div id="repTotalTrx" class="text-base font-black text-slate-900 mt-1">0</div>
+      </div>
+      <div class="bg-white p-3 rounded-lg border border-slate-200">
+        <div class="text-slate-500 font-medium">Item Terjual (Volume)</div>
+        <div id="repTotalItems" class="text-base font-black text-slate-900 mt-1">0 pcs</div>
+      </div>
+      <div class="bg-white p-3 rounded-lg border border-slate-200">
+        <div class="text-slate-500 font-medium">Rata-rata Nilai Belanja</div>
+        <div id="repAvgTrx" class="text-base font-black text-slate-900 mt-1">Rp 0</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
+      <!-- Top 10 Products -->
+      <div class="bg-white rounded-lg border border-slate-200 p-3 flex flex-col">
+        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide border-b pb-2 mb-2">10 Produk Terlaris</h3>
+        <div id="repTopProductsList" class="flex-1 overflow-y-auto space-y-2 text-xs"></div>
+      </div>
+
+      <!-- Transactions Breakdown -->
+      <div class="lg:col-span-2 bg-white rounded-lg border border-slate-200 overflow-hidden flex flex-col">
+        <div class="p-3 border-b text-xs font-bold text-slate-800">Rincian Transaksi Periode Ini</div>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b text-slate-600 font-bold">
+                <th class="p-2.5 pl-3">ID</th>
+                <th class="p-2.5">Waktu</th>
+                <th class="p-2.5 text-right">Total Transaksi</th>
+                <th class="p-2.5 text-right">Uang Diterima</th>
+                <th class="p-2.5 pr-3 text-center">Kembalian</th>
+              </tr>
+            </thead>
+            <tbody id="repTrxTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script>
+    if (checkAuthGuard('reports')) {
+      renderSharedHeader('reports');
+    }
+
+    async function loadSalesReport() {
+      try {
+        const start = document.getElementById('reportStartDate').value;
+        const end = document.getElementById('reportEndDate').value;
+        let url = `${API_BASE}/reports/sales`;
+        const params = [];
+        if (start) params.push(`startDate=${start}`);
+        if (end) params.push(`endDate=${end}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const res = await fetch(url, { headers: getHeaders() });
+        const data = await res.json();
+        const s = data.summary;
+
+        document.getElementById('repTotalRevenue').innerText = formatRp(s.totalRevenue);
+        document.getElementById('repTotalTrx').innerText = `${s.totalTransactions} transaksi`;
+        document.getElementById('repTotalItems').innerText = `${s.totalItemsSold} pcs`;
+        document.getElementById('repAvgTrx').innerText = formatRp(s.avgTransaction);
+
+        const topList = document.getElementById('repTopProductsList');
+        if (!data.topProducts.length) {
+          topList.innerHTML = '<p class="text-slate-400 py-4 text-center">Belum ada transaksi</p>';
+        } else {
+          topList.innerHTML = data.topProducts.map((p, idx) => `
+            <div class="p-2 rounded bg-slate-50 border border-slate-200 flex justify-between items-center">
+              <div>
+                <span class="font-bold text-slate-900">#${idx+1} ${escapeHtml(p.productName)}</span>
+                <div class="text-[11px] text-slate-500">${p.totalQuantity} pcs terjual</div>
+              </div>
+              <span class="font-black text-emerald-700 text-xs">${formatRp(p.totalRevenue)}</span>
+            </div>
+          `).join('');
+        }
+
+        const tbody = document.getElementById('repTrxTableBody');
+        tbody.innerHTML = data.transactions.map(t => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-2.5 pl-3 font-mono font-bold text-slate-700">#${t.id}</td>
+            <td class="p-2.5 text-slate-600">${new Date(t.createdAt).toLocaleString('id-ID')}</td>
+            <td class="p-2.5 text-right font-black text-slate-900">${formatRp(t.totalAmount)}</td>
+            <td class="p-2.5 text-right text-slate-600">${formatRp(t.cashPaid)}</td>
+            <td class="p-2.5 pr-3 text-right font-bold text-emerald-700">${formatRp(t.changeAmount)}</td>
+          </tr>
+        `).join('');
+
+      } catch (e) { showToast('Gagal memuat laporan', 'error'); }
+    }
+
+    loadSalesReport();
+  </script>
+</body>
+</html>

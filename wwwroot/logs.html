@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log Sistem & Audit - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex flex-col font-sans antialiased">
+
+  <div id="sharedHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col min-h-0 space-y-3">
+    
+    <div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center gap-2">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900">Audit Trail & Log Aktivitas Sistem</h2>
+        <p class="text-xs text-slate-500">Rekam jejak setiap perubahan data penting, transaksi, dan aksi pengguna</p>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <input 
+          type="text" 
+          id="systemLogSearch" 
+          placeholder="Cari aksi, user, entitas..." 
+          class="px-3 py-1.5 border border-slate-300 rounded text-xs bg-slate-50 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+          oninput="loadSystemLogs(this.value)"
+        >
+        <button onclick="loadSystemLogs()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded">Segarkan</button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left border-collapse text-xs font-mono">
+          <thead>
+            <tr class="bg-slate-50 border-b text-slate-700 font-sans font-bold">
+              <th class="p-3 pl-4">Waktu</th>
+              <th class="p-3">User & Role</th>
+              <th class="p-3">Aksi</th>
+              <th class="p-3">Entitas / ID</th>
+              <th class="p-3 pr-4">Detail Peristiwa</th>
+            </tr>
+          </thead>
+          <tbody id="systemLogsTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/js/nav.js"></script>
+  <script>
+    if (checkAuthGuard('logs')) {
+      renderSharedHeader('logs');
+    }
+
+    async function loadSystemLogs(search = '') {
+      try {
+        const url = search ? `${API_BASE}/logs?search=${encodeURIComponent(search)}` : `${API_BASE}/logs`;
+        const res = await fetch(url, { headers: getHeaders() });
+        const list = await res.json();
+        const tbody = document.getElementById('systemLogsTableBody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">Belum ada catatan log sistem</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(l => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-2.5 pl-4 text-slate-500">${new Date(l.createdAt).toLocaleString('id-ID')}</td>
+            <td class="p-2.5 font-bold text-slate-900">${escapeHtml(l.username)} <span class="text-[10px] text-slate-400 font-normal">(${l.role})</span></td>
+            <td class="p-2.5"><span class="px-1.5 py-0.5 rounded font-bold text-[10px] bg-slate-100 text-slate-800">${l.action}</span></td>
+            <td class="p-2.5 text-slate-700 font-semibold">${escapeHtml(l.entity)}</td>
+            <td class="p-2.5 pr-4 text-slate-600 font-sans">${escapeHtml(l.details)}</td>
+          </tr>
+        `).join('');
+      } catch (e) { showToast('Gagal memuat log sistem', 'error'); }
+    }
+
+    loadSystemLogs();
+  </script>
+</body>
+</html>

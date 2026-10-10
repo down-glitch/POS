@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Katalog Produk - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex flex-col font-sans antialiased">
+
+  <div id="sharedHeader"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col min-h-0 space-y-3">
+    
+    <div class="bg-white p-3 rounded-lg border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
+      <div class="relative w-full sm:w-72">
+        <input 
+          type="text" 
+          id="productTableSearch" 
+          placeholder="Cari tabel produk (nama / barcode)..." 
+          class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-md text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:bg-white"
+          oninput="filterProductTable(this.value)"
+        >
+      </div>
+
+      <button 
+        onclick="openProductModal()" 
+        class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md transition whitespace-nowrap">
+        + Tambah Produk
+      </button>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden flex-1 flex flex-col">
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+              <th class="p-3 pl-4">Barcode</th>
+              <th class="p-3">Nama Produk</th>
+              <th class="p-3 text-right">Harga</th>
+              <th class="p-3 text-center">Stok</th>
+              <th class="p-3 pr-4 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal Produk (Tambah/Edit) -->
+  <div id="productModal" class="fixed inset-0 bg-slate-950/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-sm w-full p-5 shadow-lg border border-slate-200 space-y-3.5 text-xs">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 id="productModalTitle" class="text-sm font-bold text-slate-900">Tambah Produk</h3>
+        <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold">&times;</button>
+      </div>
+      <input type="hidden" id="prodFormId">
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Barcode</label>
+        <input type="text" id="prodFormBarcode" placeholder="Barcode produk" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none">
+      </div>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Nama Produk <span class="text-rose-600">*</span></label>
+        <input type="text" id="prodFormName" placeholder="Nama produk" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none" required>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Harga (Rp) <span class="text-rose-600">*</span></label>
+          <input type="number" id="prodFormPrice" placeholder="0" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none" required min="0">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Stok <span class="text-rose-600">*</span></label>
+          <input type="number" id="prodFormStock" placeholder="0" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-600 focus:outline-none" required min="0">
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
+        <button onclick="closeProductModal()" class="px-3 py-1.5 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+        <button onclick="saveProduct()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/nav.js"></script>
+  <script>
+    if (checkAuthGuard('products')) {
+      renderSharedHeader('products');
+    }
+
+    let fullProductList = [];
+    async function loadProductTable() {
+      try {
+        const res = await fetch(`${API_BASE}/products`, { headers: getHeaders() });
+        fullProductList = await res.json();
+        renderProductTable(fullProductList);
+      } catch (err) { showToast('Gagal memuat tabel produk', 'error'); }
+    }
+
+    function filterProductTable(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) { renderProductTable(fullProductList); return; }
+      renderProductTable(fullProductList.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.barcode && p.barcode.toLowerCase().includes(q))));
+    }
+
+    function renderProductTable(list) {
+      const tbody = document.getElementById('productTableBody');
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">Tidak ada produk yang cocok</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(p => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-3 pl-4 font-mono text-slate-500">${p.barcode || '-'}</td>
+          <td class="p-3 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
+          <td class="p-3 text-right font-bold text-slate-900">${formatRp(p.price)}</td>
+          <td class="p-3 text-center font-bold ${p.stock <= 0 ? 'text-rose-600' : p.stock <= 5 ? 'text-amber-700' : 'text-slate-800'}">${p.stock}</td>
+          <td class="p-3 pr-4 text-center space-x-1">
+            <button onclick='editProduct(${JSON.stringify(p)})' class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold text-[11px]">Edit</button>
+            <button onclick="deleteProduct(${p.id}, '${escapeHtml(p.name)}')" class="px-2 py-1 bg-slate-100 hover:bg-rose-100 text-rose-700 rounded font-semibold text-[11px]">Hapus</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openProductModal(p = null) {
+      document.getElementById('productModalTitle').innerText = p ? 'Edit Produk' : 'Tambah Produk';
+      document.getElementById('prodFormId').value = p ? p.id : '';
+      document.getElementById('prodFormBarcode').value = p ? p.barcode : '';
+      document.getElementById('prodFormName').value = p ? p.name : '';
+      document.getElementById('prodFormPrice').value = p ? p.price : '';
+      document.getElementById('prodFormStock').value = p ? p.stock : '';
+      document.getElementById('productModal').classList.remove('hidden');
+      document.getElementById('productModal').classList.add('flex');
+    }
+    function editProduct(p) { openProductModal(p); }
+    function closeProductModal() {
+      document.getElementById('productModal').classList.add('hidden');
+      document.getElementById('productModal').classList.remove('flex');
+    }
+
+    async function saveProduct() {
+      const id = document.getElementById('prodFormId').value;
+      const payload = {
+        barcode: document.getElementById('prodFormBarcode').value.trim(),
+        name: document.getElementById('prodFormName').value.trim(),
+        price: parseFloat(document.getElementById('prodFormPrice').value) || 0,
+        stock: parseInt(document.getElementById('prodFormStock').value) || 0
+      };
+      if (!payload.name) { showToast('Nama produk wajib diisi', 'error'); return; }
+
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `${API_BASE}/products/${id}` : `${API_BASE}/products`;
+      try {
+        const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(payload) });
+        if (res.ok) {
+          showToast(`Produk berhasil disimpan`, 'success');
+          closeProductModal();
+          loadProductTable();
+        } else showToast('Gagal menyimpan produk', 'error');
+      } catch (err) { showToast('Error: ' + err.message, 'error'); }
+    }
+
+    async function deleteProduct(id, name) {
+      if (!confirm(`Hapus produk "${name}"?`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE', headers: getHeaders() });
+        if (res.ok) { showToast('Produk dihapus', 'info'); loadProductTable(); }
+      } catch (err) { showToast('Error: ' + err.message, 'error'); }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeProductModal();
+    });
+
+    loadProductTable();
+  </script>
+</body>
+</html>

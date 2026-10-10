@@ -97,6 +97,59 @@ async Task<bool> TriggerPusherAsync(IHttpClientFactory clientFactory, AppDbConte
 }
 
 // ==========================================
+// 0. AUTHENTICATION ENDPOINTS
+// ==========================================
+var authApi = app.MapGroup("/api/auth");
+
+authApi.MapPost("/login", async (LoginRequest req, AppDbContext db, HttpContext ctx) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+    {
+        return Results.BadRequest(new { message = "Username dan password wajib diisi." });
+    }
+
+    var user = await db.AppUsers.FirstOrDefaultAsync(u => u.Username.ToLower() == req.Username.Trim().ToLower());
+    if (user is null || user.Password != req.Password.Trim())
+    {
+        return Results.Json(new { message = "Username atau password salah." }, statusCode: 401);
+    }
+
+    // Token sederhana berbasis guid & timestamp
+    var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user.Username}:{DateTime.UtcNow.Ticks}"));
+
+    await LogActionAsync(db, user.Username, user.Role, "LOGIN", "Auth", $"Pengguna {user.FullName} ({user.Role}) berhasil masuk sistem");
+
+    return Results.Ok(new
+    {
+        token,
+        user = new
+        {
+            user.Id,
+            user.Username,
+            user.FullName,
+            user.Role
+        }
+    });
+});
+
+authApi.MapPost("/logout", async (AppDbContext db, HttpContext ctx) =>
+{
+    var user = ctx.Request.Headers["X-User"].FirstOrDefault() ?? "Unknown";
+    var role = ctx.Request.Headers["X-Role"].FirstOrDefault() ?? "Unknown";
+    await LogActionAsync(db, user, role, "LOGOUT", "Auth", $"Pengguna {user} keluar sistem");
+    return Results.Ok(new { message = "Logout berhasil." });
+});
+
+authApi.MapGet("/me", async (AppDbContext db, HttpContext ctx) =>
+{
+    var username = ctx.Request.Headers["X-User"].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(username)) return Results.Unauthorized();
+
+    var user = await db.AppUsers.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+    return user is null ? Results.Unauthorized() : Results.Ok(new { user.Id, user.Username, user.FullName, user.Role });
+});
+
+// ==========================================
 // 1. PRODUCT ENDPOINTS
 // ==========================================
 var productsApi = app.MapGroup("/api/products");
@@ -1020,6 +1073,7 @@ public class SystemConfig
 }
 
 // Request DTOs
+public record LoginRequest(string Username, string Password);
 public record CheckoutItemRequest(int ProductId, int Quantity);
 public record CheckoutRequest(List<CheckoutItemRequest> Items, decimal CashPaid);
 

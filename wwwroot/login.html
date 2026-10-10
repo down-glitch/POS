@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Kasir POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 h-full flex items-center justify-center font-sans antialiased p-4">
+
+  <div class="max-w-sm w-full bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
+    
+    <!-- Brand Header -->
+    <div class="text-center space-y-1">
+      <div class="inline-flex w-10 h-10 rounded-lg bg-emerald-600 text-white items-center justify-center font-black text-xl mb-1 shadow-sm">
+        KP
+      </div>
+      <h1 class="text-lg font-black tracking-tight text-slate-900">
+        KASIR<span class="text-emerald-600">POS</span>
+      </h1>
+      <p class="text-xs text-slate-500">Masuk untuk mengakses terminal kasir & sistem gudang</p>
+    </div>
+
+    <!-- Alert Message -->
+    <div id="loginAlert" class="hidden p-2.5 rounded-md text-xs font-semibold bg-rose-50 border border-rose-200 text-rose-700"></div>
+
+    <!-- Login Form -->
+    <form onsubmit="handleLoginSubmit(event)" class="space-y-3.5 text-xs">
+      <div>
+        <label for="loginUsername" class="block font-semibold text-slate-700 mb-1">Username</label>
+        <input 
+          type="text" 
+          id="loginUsername" 
+          required 
+          autocomplete="username"
+          placeholder="admin / kasir / gudang" 
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+        >
+      </div>
+
+      <div>
+        <label for="loginPassword" class="block font-semibold text-slate-700 mb-1">Password</label>
+        <input 
+          type="password" 
+          id="loginPassword" 
+          required 
+          autocomplete="current-password"
+          placeholder="Masukkan password" 
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+        >
+      </div>
+
+      <button 
+        type="submit" 
+        id="btnLoginSubmit"
+        class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-lg transition shadow-sm"
+      >
+        Masuk ke Sistem
+      </button>
+    </form>
+
+    <!-- Akun Demo Bawaan -->
+    <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">
+      <div class="font-bold text-slate-700">Akun Tersedia Bawaan:</div>
+      <div class="flex justify-between font-mono">
+        <span>Admin: <b class="text-slate-800">admin</b> / admin</span>
+        <button type="button" onclick="fillCreds('admin','admin')" class="text-emerald-700 hover:underline">Isi</button>
+      </div>
+      <div class="flex justify-between font-mono">
+        <span>Kasir: <b class="text-slate-800">kasir</b> / kasir</span>
+        <button type="button" onclick="fillCreds('kasir','kasir')" class="text-emerald-700 hover:underline">Isi</button>
+      </div>
+      <div class="flex justify-between font-mono">
+        <span>Gudang: <b class="text-slate-800">gudang</b> / gudang</span>
+        <button type="button" onclick="fillCreds('gudang','gudang')" class="text-emerald-700 hover:underline">Isi</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Redirect jika sudah memiliki token aktif
+    const existingToken = localStorage.getItem('pos_token');
+    const existingUser = localStorage.getItem('pos_user');
+    if (existingToken && existingUser) {
+      try {
+        const u = JSON.parse(existingUser);
+        window.location.href = u.role === 'Gudang' ? '/warehouse.html' : '/index.html';
+      } catch (e) {}
+    }
+
+    function fillCreds(u, p) {
+      document.getElementById('loginUsername').value = u;
+      document.getElementById('loginPassword').value = p;
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      const alertBox = document.getElementById('loginAlert');
+      const btn = document.getElementById('btnLoginSubmit');
+
+      alertBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerText = 'Memverifikasi...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alertBox.innerText = err.message || 'Username atau password salah.';
+          alertBox.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerText = 'Masuk ke Sistem';
+          return;
+        }
+
+        const data = await res.json();
+        localStorage.setItem('pos_token', data.token);
+        localStorage.setItem('pos_user', JSON.stringify(data.user));
+
+        // Arahkan ke halaman sesuai peran
+        if (data.user.role === 'Gudang') {
+          window.location.href = '/warehouse.html';
+        } else {
+          window.location.href = '/index.html';
+        }
+      } catch (err) {
+        alertBox.innerText = 'Gagal menghubungi server: ' + err.message;
+        alertBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerText = 'Masuk ke Sistem';
+      }
+    }
+  </script>
+</body>
+</html>
