@@ -1,0 +1,49 @@
+@KasirPos_HostAddress = http://localhost:5226
+
+### 1. Tambah Produk A
+POST {{KasirPos_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "barcode": "899123456001",
+  "name": "Kopi Susu Gula Aren",
+  "price": 18000,
+  "stock": 50
+}
+
+### 2. Tambah Produk B
+POST {{KasirPos_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "barcode": "899123456002",
+  "name": "Roti Bakar Cokelat",
+  "price": 15000,
+  "stock": 20
+}
+
+### 3. Ambil Semua Produk
+GET {{KasirPos_HostAddress}}/api/products
+Accept: application/json
+
+### 4. Transaksi Kasir / Checkout
+POST {{KasirPos_HostAddress}}/api/transactions
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    },
+    {
+      "productId": 2,
+      "quantity": 1
+    }
+  ],
+  "cashPaid": 60000
+}
+
+### 5. Riwayat Transaksi Penjualan
+GET {{KasirPos_HostAddress}}/api/transactions
+Accept: application/json
